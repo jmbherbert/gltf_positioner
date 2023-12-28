@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" type="text/css" href="src/style.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GLTF Positioner</title>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
+    <script type="module" src="/src/main.ts"></script>
+  </head>
+  <body>
+	  
+	<div id="update-location">
+	  <input id="location-input" type="text" placeholder="Enter location (lat, lng)">
+	  <button id="update-location-button">Update</button>
+	</div>  
+	  
+	<div id="model_info_overlay">
+		<div id="local_position">
+			<div class="subtitle">Local Position:</div>
+			<div class="position_info" id="local_position_info">
+				<div>Translation: <span id="local_translation"></span></div>
+				<div>Rotation: <span id="local_rotation"></span></div>
+				<div>Scale: <span id="local_scale"><span></div>
+			</div>
+		</div>
+		<div id="lat_lng_alt_position">
+			<div class="subtitle">Lat/Lng/Alt Position:</div>
+			<div class="position_info" id="lat_lng_alt_position_info">
+				<div>Lat: <span id="lla_lat"></span></div>
+				<div>Lng: <span id="lla_lng"></span></div>
+				<div>Alt: <span id="lla_alt"></span></div>
+			</div>
+		</div>
+		<div id="ecef_position">
+			<div class="subtitle">ECEF Position:</div>
+			<div class="position_info" id="ecef_position_info">
+				<div>Translation: <span id="ecef_translation"></span></div>
+				<div>Rotation: <span id="ecef_rotation"></span></div>
+				<div>Scale: <span id="ecef_scale"></span></div>
+			</div>
+		</div>
+	    <button id="export_btn">Export Positioned GLTF</button>
+	</div>
+    
+	
+	<div id="map" class="map"></div>
+	
+	<div id="control_guide">
+		<div class="subtitle">Controls:</div>
+		<div>Position:</div>
+		<div>- X: A, D</div>
+		<div>- Y: W, S</div>
+		<div>- Z: Z, X</div>
+		<div>Rotation:</div>
+		<div>- X: J, L</div>
+		<div>- Y: I, K</div>
+		<div>- Z: U, O</div>
+		<div>Scale:</div>
+		<div>- , .</div>
+	</div>
+	
+	
+
+    <script
+      src="https://maps.googleapis.com/maps/api/js?key=API_KEY&callback=initMap&v=beta"
+      defer
+    ></script>
+  </body>
+</html>

@@ -1,0 +1,84 @@
+/**
+ * @license
+ * Copyright 2019 Google LLC. All Rights Reserved.
+ * SPDX-License-Identifier: Apache-2.0
+ */
+/* 
+ * Always set the map height explicitly to define the size of the div element
+ * that contains the map. 
+ */
+#map {
+  height: 100%;
+}
+
+/* 
+ * Optional: Makes the sample page fill the window. 
+ */
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+#update-location {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index:10;
+}
+
+#update-location input{
+	font-size:large;
+}
+
+
+#model_info_overlay {
+  position: absolute;
+  top: 10px;
+  right: 60px;
+  background-color: rgba(30, 40, 200, 0.4);
+  padding: 10px;
+  font-size: small;
+  font-family: Arial, sans-serif;
+  color: white;
+  border-radius: 5px;
+  z-index:10;
+}
+
+#control_guide {
+    position: absolute;
+    bottom: 30px;
+    left: 10px;
+    background-color: rgba(30, 40, 200, 0.4);
+    padding: 10px;
+    font-size: small;
+    font-family: Arial, sans-serif;
+    color: white;
+    border-radius: 5px;
+    pointer-events: none;
+    z-index:10;
+}
+
+
+#model_info_overlay div 
+#control_guide div{
+  margin-bottom: 5px;
+}
+
+.subtitle {
+	font-weight:bold;
+}
+
+
+#model_info_overlay #translation,
+#model_info_overlay #rotation,
+#model_info_overlay #scale {
+  font-weight: bold;
+}
+
+
+#export_btn {
+  margin-top: 10px;
+}
