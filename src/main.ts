@@ -56,32 +56,18 @@ async function exportPositionedGLTF(model, overlay) {
 
 	const origin = overlay.anchor;
 	const local = model.position;
-	const transform = await localToECEF(origin, local, true);
-	
-	
+	const ecef_with_normal = await localToECEFWithNormal(origin, local, true);
+	const global_quaternion = computeQuaternion(ecef_with_normal);
+  // Rotate around the x axis, like what we did for visualization.
+  global_quaternion.multiply(
+    new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI/2));
+
+
 	let positioned_model = SkeletonUtils.clone(model);
-
-	// First Undo the rotation that we did for the UI
-	positioned_model.rotateX(- Math.PI/2);
-
-	// Then rotate the model so that it's X-Up
-	positioned_model.rotateZ(-Math.PI/2);
-
-
-
-    const ecef_transform = new THREE.Vector3(transform.x, transform.y, transform.z);
-	const global_quaternion = computeQuaternion(ecef_transform);
-
-	console.log('Global Quaternion: ' + global_quaternion.toArray());
-
-
-    positioned_model.setRotationFromQuaternion(global_quaternion);
-
-    positioned_model.rotateZ(-Math.PI/2);
-	
-    positioned_model.position.x = transform.x;
-    positioned_model.position.y = transform.y;
-    positioned_model.position.z = transform.z;
+  positioned_model.setRotationFromQuaternion(global_quaternion);
+  positioned_model.position.x = ecef_with_normal.position.x;
+  positioned_model.position.y = ecef_with_normal.position.y;
+  positioned_model.position.z = ecef_with_normal.position.z;
 
 	
 	gltfExporter.parse(
@@ -148,7 +134,8 @@ async function getGeoidUndulation(lat,lng) {
 	  }
     }
   } catch (error) {
-    console.log(e)
+    console.log(error)
+    return 0;
   }
 }
 
@@ -193,36 +180,25 @@ function setLatLngAltInfo(model) {
 }
 
 
-function computeQuaternion(ecef_vector){
+function computeQuaternion(ecef_with_normal){
+  const north_pole = new THREE.Vector3(0, 0, 1);
 
-  // First we need a unit vector point along the x-axis
-  const unit_vector_x = new THREE.Vector3(1, 0, 0);
+  const up = ecef_with_normal.normal;
+  const east = north_pole.cross(up).normalize();
+  const north = up.clone().cross(east).normalize();
 
-  const unit_vector_ecef = ecef_vector.clone().normalize();
-  console.log('Unit Vector: ');
-  console.log(unit_vector_ecef.toArray());
+  // Note that if we are at the north or south pole (e.g. `up.dot(north_pole)` is 1 or -1), we should special case.
+  // However, we are operating on a Mercator map, so the north/south pole is inaccessible anyway.
 
-  // The cross product defines the axis of rotation
-  let rot_axis_vector = new THREE.Vector3(0, 0, 0);
-  rot_axis_vector.crossVectors(unit_vector_x, unit_vector_ecef);
+  const m = new THREE.Matrix4();
+  m.set(east.x, north.x, up.x, 0,
+        east.y, north.y, up.y, 0,
+        east.z, north.z, up.z, 0,
+        0, 0, 0, 1);
 
-  console.log('Cross Product: ');
-  console.log(rot_axis_vector.toArray());
-
-  // Now we need to normalize it to a unit vector
-  rot_axis_vector.normalize();
-
-  // To get the angle of rotation, we need the dot product of the first two vectors
-  const dot_product = unit_vector_x.dot(unit_vector_ecef);
-  const theta = Math.acos(dot_product);
-
-  const q_x = rot_axis_vector.x * Math.sin(theta / 2);
-  const q_y = rot_axis_vector.y * Math.sin(theta / 2);
-  const q_z = rot_axis_vector.z * Math.sin(theta / 2);
-  const q_w = Math.cos(theta / 2);
-  const quaternion = new THREE.Quaternion(q_x, q_y, q_z, q_w);
-
-  return quaternion;
+  const quat = new THREE.Quaternion();
+  quat.setFromRotationMatrix(m);
+  return quat;
 }
 
 
@@ -277,26 +253,39 @@ async function localToECEF(origin, local, set_precise_altitude=false) {
   return {'x': x, 'y': y, 'z': z};
 }
 
+async function localToECEFWithNormal(origin, local, set_precise_altitude=false) {
+  const translation_raw = await localToECEF(origin, local, set_precise_altitude);
+  const translation = new THREE.Vector3(translation_raw.x, translation_raw.y, translation_raw.z);
+
+  const translation_down_raw = await localToECEF(origin, new THREE.Vector3(0, 0, 0), false);
+  const origin_up = new google.maps.LatLngAltitude({lat: origin.lat, lng: origin.lng, altitude: origin.altitude + 100.0});
+  const translation_up_raw = await localToECEF(origin_up, new THREE.Vector3(0, 0, 0), false);
+
+  const translation_down = new THREE.Vector3(translation_down_raw.x, translation_down_raw.y, translation_down_raw.z);
+  const translation_up = new THREE.Vector3(translation_up_raw.x, translation_up_raw.y, translation_up_raw.z);
+  const normal = translation_up.sub(translation_down).normalize();
+
+  return {'position': translation, 'normal': normal};
+}
+
 
 async function setECEFPositionInfo(model, overlay){
 	const origin = overlay.anchor;
   const local = model.position;
 
-	const transform = await localToECEF(origin, local);
+	const ecef_with_normal = await localToECEFWithNormal(origin, local);
 	const ecef_translation_div = document.getElementById('ecef_translation');
-	ecef_translation_div.innerHTML = '[' + transform.x + ',<br />' + transform.y + ',<br />' + transform.z + ']';
+	ecef_translation_div.innerHTML = '[' + ecef_with_normal.position.x + ',<br />' + ecef_with_normal.position.y + ',<br />' + ecef_with_normal.position.z + ']';
 
   // Get global quaternion
-  const ecef_vector = new THREE.Vector3(transform.x, transform.y, transform.z);
-  console.log(ecef_vector.toArray());
+  const ecef_vector = ecef_with_normal.position;
+  console.log('ecef_vector ' + ecef_vector.toArray());
 
-  const quaternion = computeQuaternion(ecef_vector);
-  console.log(quaternion.toArray());
+  const quaternion = computeQuaternion(ecef_with_normal);
+  console.log('quaternion ' + quaternion.toArray());
   
   const ecef_rotation_div = document.getElementById('ecef_rotation');
   ecef_rotation_div.innerHTML = '[x: ' + quaternion.x + ',<br />y:' + quaternion.y + ',<br />z:' + quaternion.z + ',<br />w:' + quaternion.w + ']';
-
-
 }
 
 
