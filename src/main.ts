@@ -44,14 +44,18 @@ function get_gltf(url: string) {
 }
 
 
-async function exportPositionedGLTF(model, overlay) {
+async function exportPositionedGLTF(model, overlay, animationClipList) {
 	const gltfExporter = new GLTFExporter();
 	const export_options = {
 		trs: false,
 		onlyVisible: true,
 		binary: false,
 		maxTextureSize: 4096
-	};
+    };
+
+    if(animationClipList != null){
+        export_options.animations = animationClipList;
+    }
 
 
 	const origin = overlay.anchor;
@@ -360,10 +364,10 @@ function addControls(overlay, model) {
  * Adds an event listener to the export GLTF model button
  * that will export the model
  */
-function addExportButtonListener(model, overlay) {
+function addExportButtonListener(model, overlay, animationClipList) {
 	const exportBtn = document.getElementById('export_btn');
 	exportBtn.addEventListener('click', function() {
-	  exportPositionedGLTF(model, overlay);
+	  exportPositionedGLTF(model, overlay, animationClipList);
 	});
 }
 
@@ -388,19 +392,39 @@ function addDragAndDropListener(overlay, scene) {
       const data = event.target.result;
       loader.parse(data, '', function (gltf) {
         const model = gltf.scene;
-	// Rotate the model a quarter-turn around the z-axis to make it so y-axis models stand up in the UI
-	console.log('Rotating model');
-	model.rotateX(Math.PI / 2);
+	    // Rotate the model a quarter-turn around the z-axis to make it so y-axis models stand up in the UI
+	    console.log('Rotating model');
+	    model.rotateX(Math.PI / 2);
 
-	scene.add(model);
+        let animationClipList = null;
+
+        // Setting up any animations
+        if(gltf.animations.length > 0) {
+            console.log('GLTF has animations - adding');
+            let mixer = new THREE.AnimationMixer( gltf.scene );
+            const clock = new THREE.Clock();
+            var action = mixer.clipAction( gltf.animations[ 0 ] );
+            // Cache the animations for export
+            animationClipList = gltf.animations;
+            action.play();
+
+            const animate = () => {
+                mixer.update(clock.getDelta());
+                overlay.requestRedraw();
+                requestAnimationFrame(animate);
+            }
+            requestAnimationFrame(animate);
+        }
+
+	    scene.add(model);
 	
 
         addControls(overlay, model);
 		
-	addExportButtonListener(model, overlay);
+	    addExportButtonListener(model, overlay, animationClipList);
 		
-	updateModelInfoOverlay(model, overlay);
-	overlay.requestRedraw();
+	    updateModelInfoOverlay(model, overlay);
+	    overlay.requestRedraw();
       });
     };
     reader.readAsArrayBuffer(file);
@@ -440,8 +464,6 @@ function addLocationUpdateListener(map, overlay) {
 }
 
 
-
-
 function initMap(): void {
   // Setup the key elements of the map
   const mapDiv = document.getElementById("map") as HTMLElement;
@@ -449,6 +471,7 @@ function initMap(): void {
 
   // Create the scene
   const scene = new THREE.Scene();
+
 
   // Add some lighting
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
